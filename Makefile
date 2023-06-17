@@ -17,10 +17,22 @@ ifeq ($(shell $(CC) -Iinclude -o /dev/null test/availability/strnstr.c 2>/dev/nu
 CFLAGS := $(CFLAGS) -DHAVE_STRNSTR
 endif
 
-all: build/librubyparser.$(SOEXT)
+all: build/librubyparser.$(SOEXT) build/librubyparser.a
 
 build/librubyparser.$(SOEXT): $(shell find src -name '*.c') $(shell find src -name '*.h') Makefile build include/yarp/ast.h
 	$(CC) $(OPTFLAGS) $(DEBUG_FLAGS) $(CFLAGS) -std=c99 -Wall -Werror -Wextra -Wpedantic -Wsign-conversion -fPIC -g -fvisibility=hidden -shared -Iinclude -o $@ $(shell find src -name '*.c')
+
+OBJECTS := $(patsubst src/%.c, build/%.o, $(shell find src -name '*.c'))
+
+# build/librubyparser.$(SOEXT): $(OBJECTS) $(shell find src -name '*.h') Makefile build include/yarp/ast.h
+# 	$(CC) -shared -o $@ $(OBJECTS)
+
+build/librubyparser.a: $(OBJECTS) $(shell find src -name '*.h') Makefile build include/yarp/ast.h
+	$(AR) rcs $@ $(OBJECTS)
+
+$(OBJECTS): build/%.o: src/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(OPTFLAGS) $(DEBUG_FLAGS) $(CFLAGS) -std=c99 -Wall -Werror -Wextra -Wpedantic -Wsign-conversion -fPIC -g -fvisibility=hidden -c -Iinclude -o $@ $<
 
 build/profile: $(shell find src -name '*.c') $(shell find src -name '*.h') Makefile build include/yarp/ast.h bin/profile.c
 	$(CC) $(CFLAGS) -O3 -std=c99 -Iinclude -o $@ $(shell find src -name '*.c') bin/profile.c
@@ -34,6 +46,8 @@ include/yarp/ast.h: bin/templates/include/yarp/ast.h.erb
 clean:
 	rm -f \
 		build/librubyparser.$(SOEXT) \
+		build/librubyparser.a \
+		$(OBJECTS) \
 		ext/yarp/node.c \
 		include/{ast.h,node.h} \
 		java/org/yarp/{AbstractNodeVisitor.java,Loader.java,Nodes.java} \
